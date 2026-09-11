@@ -1,0 +1,188 @@
+{
+  "name": "SEA Copilot — Ingestion rapports → Supabase Vector",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Ingestion rapports → Supabase\n\n1. Exécuter `supabase-setup.sql` sur votre projet Supabase.\n2. Configurer credentials OpenAI + Supabase.\n3. **Exécuter ce workflow une fois** (ou après chaque nouveau rapport).\n4. Puis utiliser le workflow **Agent Fondateur** (chat).",
+        "height": 260,
+        "width": 440,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        80
+      ],
+      "id": "73a08795-8895-46b2-9a0f-f6a637fa552e",
+      "name": "📋 Guide — Ingestion RAG"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "id": "b66ef82b-5d9a-417b-a70d-7ec4396b808f",
+      "name": "Lancer ingestion manuelle"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const docs = [\n  {\n    client: 'Lumière Paris',\n    period: '2026-04 — Rapport mensuel',\n    content: `# Rapport Meta — Lumière Paris (Avril 2026)\\n\\n## Synthèse\\nROAS compte 3.85. Catalogue dynamique porteur. Panier abandon stable (ROAS 2.4).\\n\\n## Décision\\nMaintenir budget retargeting, test créa UGC sur notoriété.`,\n  },\n  {\n    client: 'Lumière Paris',\n    period: '2026-05 — Alertes mi-mois',\n    content: `# Point mi-mai — Panier Abandon\\n\\nCampagne **Retargeting — Panier Abandon 7j** : hausse budget +30%, ROAS passé de 2.45 à 1.18.\\n\\n**Recommandation archive** : pause partielle ou baisse enchères, message client sur qualité trafic vs volume.`,\n  },\n  {\n    client: 'Lumière Paris',\n    period: '2026-05 — Focus fondateur',\n    content: `# Narratif rétention\\n\\nLe fondateur doit montrer qu'il voit la décroche avant le client. Angle : protection marge + plan 48h (créas, exclusions, cap spend).`,\n  },\n  {\n    client: 'Horizon SEA — Interne',\n    period: '2026-Q2 — Playbook',\n    content: `# Playbook agence\\n\\nToujours structurer l'analyse en 4 blocs : va bien / décroche / 48h / message client.`,\n  },\n];\n\nreturn docs.map((d, i) => ({\n  json: {\n    text: d.content,\n    metadata: { client: d.client, period: d.period, source: 'ingest_demo', doc_index: i },\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "id": "93af6b08-b822-4b91-b839-0543d523bbe1",
+      "name": "Préparer rapports démo"
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "id": "5657ded8-0227-4743-a555-cf43b1b826e8",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 100,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        460,
+        480
+      ],
+      "id": "4d908bbb-cb2a-4241-9edc-8e47c4ae85ac",
+      "name": "Recursive Text Splitter"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        480
+      ],
+      "id": "6612530f-76a5-4113-ad6d-05be60028d1d",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "67b9f695-9d3e-4197-abca-69a1568ab6e8",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "narrative_reports",
+        "options": {
+          "queryName": "match_narrative_reports"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "15b9999d-37cb-4dcc-b357-f73e5928773d",
+      "name": "Supabase — INSERT narrative_reports",
+      "credentials": {
+        "supabaseApi": {
+          "id": "ed72ff6e-b46e-416c-9221-00bfcb0aeb7a",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lancer ingestion manuelle": {
+      "main": [
+        [
+          {
+            "node": "Préparer rapports démo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer rapports démo": {
+      "main": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase — INSERT narrative_reports",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase — INSERT narrative_reports",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "044a6f19-508b-4d16-b0fd-e093950c4c01",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "66003fad-32ff-4655-9f3c-230db8362f8a"
+  },
+  "tags": []
+}

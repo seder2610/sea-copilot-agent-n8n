@@ -1,0 +1,242 @@
+{
+  "name": "SEA Copilot — Agent Fondateur Meta (v1)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## SEA Copilot — Agent fondateur\n\n1. Connecter **Anthropic**, **OpenAI** (embeddings), **Supabase** (optionnel phase 2).\n2. Exécuter d'abord le workflow **Ingestion** une fois.\n3. Ouvrir le chat n8n et poser une question sur Lumière Paris.\n4. L'agent appelle `meta_compte_live` pour les chiffres démo.",
+        "height": 320,
+        "width": 480,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        -120
+      ],
+      "id": "57a2e535-0fa9-4639-be1f-fd182765c046",
+      "name": "📋 Guide — Copilote fondateur"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        300
+      ],
+      "id": "acaa2d85-76c4-4438-9a51-ced88c41868e",
+      "name": "Quand un message chat arrive",
+      "webhookId": "8cc3a365-0d77-4384-aaa6-aeda2c55ca44"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "Tu es le copilote stratégique d'un fondateur d'agence SEA (Search Engine Advertising / Meta Ads).\n\nRÔLE\n- Aider à prioriser les actions sur les comptes clients Meta Ads.\n- Parler comme un directeur de compte senior : clair, orienté rétention client et marge agence.\n- Jamais de jargon technique inutile (pas de « embedding », « token », « API » sauf si le fondateur demande).\n\nOUTILS — QUAND LES UTILISER\n1. meta_compte_live : dès qu'on parle de performance actuelle, campagnes, ROAS, budget, alertes. Toujours appeler avant de conclure sur l'état « live » d'un compte.\n2. search_rapports_meta (si disponible) : pour retrouver l'historique narratif (rapports passés, décisions, contexte client). Utiliser quand on compare avec le passé ou qu'on cherche « ce qu'on avait dit en avril ».\n\nMÉMOIRE\n- La mémoire de session garde le fil de la conversation en cours.\n- Le vector store garde les rapports archivés — ce ne sont pas la même chose.\n\nFORMAT D'ANALYSE COMPTE (4 sections obligatoires quand tu analyses un compte)\n1. **Ce qui va bien** — 2-3 bullets max, chiffrés si possible.\n2. **Ce qui décroche** — campagnes ou signaux à risque, avec impact business client.\n3. **Actions 48h** — 2-3 actions concrètes (pas une liste de 10 tâches).\n4. **Message client** — brouillon court (3-5 phrases) que le fondateur peut envoyer tel quel ou adapter.\n\nRÈGLES\n- Si les données live contredisent une intuition, fais confiance aux données.\n- Toujours relier performance ads → satisfaction client → rétention contrat agence.\n- En mode démo, le compte type est « Lumière Paris » — assume ce contexte si non précisé.\n- Réponds en français."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        420,
+        300
+      ],
+      "id": "73345dcf-8d1b-4c9b-9b68-418945bf2500",
+      "name": "AI Agent — Copilote SEA",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        520
+      ],
+      "id": "f8b7fd62-7df4-46b2-8976-0f32137f90ac",
+      "name": "Claude Sonnet — Anthropic",
+      "credentials": {
+        "anthropicApi": {
+          "id": "a3942b94-5501-4325-b51b-22426725dc91",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 12
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        680
+      ],
+      "id": "a9814764-d2dc-4b5e-b075-5dec0de4ebc6",
+      "name": "Mémoire session (12 tours)"
+    },
+    {
+      "parameters": {
+        "name": "meta_compte_live",
+        "description": "Récupère les métriques Meta Ads actuelles du compte (démo : Lumière Paris — campagnes, ROAS, alertes DÉCROCHE). Appeler avant toute analyse « live ».",
+        "language": "javaScript",
+        "jsCode": "const demo = {\n  account: {\n    name: 'Lumière Paris — E-commerce Mode',\n    id: 'act_284719305612847',\n    currency: 'EUR',\n    status: 'ACTIVE',\n    agency: 'Agence Horizon SEA',\n  },\n  period: { label: '30 derniers jours — Mai 2026', since: '2026-04-06', until: '2026-05-05' },\n  totals: { spend_eur: 12830, roas: 3.42, conversions: 504, cpa_eur: 25.46 },\n  campaigns: [\n    { name: 'Prospection — Lookalike Acheteurs 180j', spend: 4280, roas: 5.65, signal: 'TOP' },\n    { name: 'Conversion — Catalogue Dynamique', spend: 3150, roas: 6.3, signal: 'TOP' },\n    {\n      name: 'Retargeting — Panier Abandon 7j',\n      spend: 2840,\n      roas: 1.18,\n      roas_prev: 2.45,\n      signal: 'DÉCROCHE',\n      note: 'Budget +30%, ROAS divisé par ~2 — priorité rétention',\n    },\n    { name: 'Notoriété — Vidéo UGC Printemps', spend: 1920, roas: 1.17, signal: 'OK' },\n  ],\n  fetched_at: new Date().toISOString(),\n  source: 'demo_static',\n};\nreturn JSON.stringify(demo, null, 2);"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        520
+      ],
+      "id": "8f335419-2e1b-472e-b5ad-9b3a8f3935ae",
+      "name": "meta_compte_live"
+    },
+    {
+      "parameters": {
+        "mode": "retrieveAsTool",
+        "toolName": "search_rapports_meta",
+        "toolDescription": "Recherche sémantique dans les rapports narratifs Meta archivés (historique client, périodes passées, décisions).",
+        "tableName": "narrative_reports",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        680
+      ],
+      "id": "f6bf7ef9-bd82-436c-bc55-b78524c5e47b",
+      "name": "Supabase — search_rapports_meta",
+      "credentials": {
+        "supabaseApi": {
+          "id": "55fb6a99-7067-4310-af20-9cad9cd04cc7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        860
+      ],
+      "id": "3d9c219b-dec4-42f6-88bf-d27b62fa533a",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "3b710f74-59b7-415a-8bfb-a83310e87e9f",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Phase 2 : activer Supabase\n\nSans Supabase : l'agent fonctionne avec **meta_compte_live** + mémoire session.\n\nAvec Supabase : exécuter `supabase-setup.sql`, lancer **Ingestion**, puis activer les credentials ici.",
+        "height": 220,
+        "width": 360,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        820,
+        120
+      ],
+      "id": "84dd5f1a-d439-4da4-b4b5-4bbd7f2989b4",
+      "name": "Phase 2 — Supabase"
+    }
+  ],
+  "connections": {
+    "Quand un message chat arrive": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Copilote SEA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet — Anthropic": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Copilote SEA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mémoire session (12 tours)": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent — Copilote SEA",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "meta_compte_live": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Copilote SEA",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — search_rapports_meta": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Copilote SEA",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase — search_rapports_meta",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7b38d1d7-7486-4d94-8b5e-63fb479bb7bf",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "1334ef4a-58a3-4a8c-93c9-af3364afcb3a"
+  },
+  "tags": []
+}
